@@ -1,15 +1,17 @@
 package agent
 
-type Agent struct {
-	Classifier Classifier
-	Router     Router
-}
+import (
+	"agente-bancario/mcp"
+	"agente-bancario/policy"
+	"agente-bancario/tools"
+)
 
-func (a *Agent) Handle(input string) (string, error){
-	intent, err := a.Classifier.Classify(input)
+func HandleToolCall(user policy.AuthenticatedUser, toolcall mcp.ToolCall) (any, error) {
+
+	responseTool, err := tools.ExecuteTool(user, toolcall)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return a.Router.Route(intent, input)
+	return responseTool, nil
 }
