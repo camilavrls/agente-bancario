@@ -4,17 +4,44 @@ import (
 	"agente-bancario/mcp"
 	"agente-bancario/policy"
 	"fmt"
+	"os"
 	"strings"
 )
 
+const (
+	llmProviderGemini    = "gemini"
+	llmProviderHeuristic = "heuristic"
+)
+
 func PlanToolCall(message string, user policy.AuthenticatedUser, availableTools []mcp.ToolDefinition) (mcp.ToolCall, error) {
+	provider := strings.ToLower(os.Getenv("LLM_PROVIDER"))
+	if provider == "" {
+		provider = llmProviderHeuristic
+	}
+
+	switch provider {
+	case llmProviderGemini:
+		return PlanToolCallGemini(message, user, availableTools)
+	case llmProviderHeuristic:
+		return PlanToolCallHeuristic(message, user, availableTools)
+	default:
+		return mcp.ToolCall{}, fmt.Errorf("LLM_PROVIDER invalido: %s", provider)
+	}
+}
+
+func PlanToolCallHeuristic(message string, user policy.AuthenticatedUser, availableTools []mcp.ToolDefinition) (mcp.ToolCall, error) {
 	normalized := strings.ToLower(message)
+	customerID := user.CustomerID
 
 	if strings.Contains(normalized, "joao") || strings.Contains(normalized, "joão") {
+		customerID = "cust-456"
+	}
+
+	if strings.Contains(normalized, "limite") || strings.Contains(normalized, "cartao") || strings.Contains(normalized, "cartão") {
 		return mcp.ToolCall{
-			Name: "get_customer_profile",
+			Name: "get_card_limit",
 			Arguments: map[string]string{
-				"customer_id": "cust-456",
+				"customer_id": customerID,
 			},
 		}, nil
 	}
@@ -23,7 +50,7 @@ func PlanToolCall(message string, user policy.AuthenticatedUser, availableTools 
 		return mcp.ToolCall{
 			Name: "get_customer_profile",
 			Arguments: map[string]string{
-				"customer_id": user.CustomerID,
+				"customer_id": customerID,
 			},
 		}, nil
 	}

@@ -18,6 +18,22 @@ var customers = map[string]CustomerProfile{
 	},
 }
 
+var cardLimits = map[string]CardLimit{
+	"cust-123": {
+		CustomerID:      "cust-123",
+		CurrentLimit:    10000,
+		AvailableLimit:  7400,
+		MaxAllowedLimit: 15000,
+	},
+
+	"cust-456": {
+		CustomerID:      "cust-456",
+		CurrentLimit:    3000,
+		AvailableLimit:  850,
+		MaxAllowedLimit: 5000,
+	},
+}
+
 func GetCustomerProfile(customerID string) (CustomerProfile, error) {
 
 	profile, ok := customers[customerID]
@@ -27,5 +43,17 @@ func GetCustomerProfile(customerID string) (CustomerProfile, error) {
 	}
 
 	return profile, nil
+
+}
+
+func GetCardLimit(customerID string) (CardLimit, error) {
+
+	limit, ok := cardLimits[customerID]
+
+	if !ok {
+		return CardLimit{}, fmt.Errorf("limite de cartão não encontrado: %s", customerID)
+	}
+
+	return limit, nil
 
 }

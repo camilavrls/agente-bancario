@@ -19,6 +19,8 @@ func main() {
 
 	runPrompt("Maria acessando o proprio perfil", maria, "quero consultar meu perfil")
 	runPrompt("Maria tentando acessar Joao", maria, "quero consultar o perfil do joao")
+	runPrompt("Maria consultando o proprio limite", maria, "qual e o limite do meu cartao?")
+	runPrompt("Maria tentando consultar limite de Joao", maria, "qual e o limite do cartao do joao?")
 }
 
 func runPrompt(label string, user policy.AuthenticatedUser, prompt string) {

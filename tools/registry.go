@@ -9,6 +9,7 @@ import (
 func ListTools() []mcp.ToolDefinition {
 	return []mcp.ToolDefinition{
 		GetCustomerProfileToolDefinition(),
+		GetCardLimitToolDefinition(),
 	}
 }
 
@@ -21,6 +22,13 @@ func ExecuteTool(user policy.AuthenticatedUser, toolcall mcp.ToolCall) (any, err
 		}
 
 		return GetCustomerProfileTool(user, customerID)
+	case "get_card_limit":
+		customerID, ok := toolcall.Arguments["customer_id"]
+		if !ok {
+			return nil, fmt.Errorf("missing required argument: customer_id")
+		}
+
+		return GetCardLimitTool(user, customerID)
 	default:
 		return nil, fmt.Errorf("unknown tool")
 	}

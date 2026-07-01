@@ -6,3 +6,10 @@ type CustomerProfile struct {
 	Segment     string
 	CreditScore int
 }
+
+type CardLimit struct {
+	CustomerID      string
+	CurrentLimit    int
+	AvailableLimit  int
+	MaxAllowedLimit int
+}
