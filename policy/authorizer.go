@@ -35,3 +35,39 @@ func CanAccessCustomerResource(user AuthenticatedUser, targetCustomerID string) 
 	}
 
 }
+
+func CanUpdateCardLimit(user AuthenticatedUser, targetCustomerID string) PolicyDecision {
+
+	switch user.Role {
+	case RoleCustomer:
+		if user.CustomerID == targetCustomerID {
+			return PolicyDecision{
+				Allowed: true,
+				Reason:  "allowed_customer_update_own_card_limit",
+			}
+		}
+		return PolicyDecision{
+			Allowed: false,
+			Reason:  "denied_customer_update_other_card_limit",
+		}
+
+	case RoleManager:
+		return PolicyDecision{
+			Allowed: true,
+			Reason:  "allowed_manager_update_card_limit",
+		}
+
+	case RoleAdmin:
+		return PolicyDecision{
+			Allowed: true,
+			Reason:  "allowed_admin_update_card_limit",
+		}
+
+	default:
+		return PolicyDecision{
+			Allowed: false,
+			Reason:  "denied_unknown_role",
+		}
+	}
+
+}

@@ -5,6 +5,7 @@ import (
 	"agente-bancario/policy"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 )
 
@@ -37,6 +38,21 @@ func PlanToolCallHeuristic(message string, user policy.AuthenticatedUser, availa
 		customerID = "cust-456"
 	}
 
+	if isCardLimitUpdateIntent(normalized) {
+		newLimit, err := extractFirstNumber(message)
+		if err != nil {
+			return mcp.ToolCall{}, err
+		}
+
+		return mcp.ToolCall{
+			Name: "update_card_limit",
+			Arguments: map[string]string{
+				"customer_id": customerID,
+				"new_limit":   newLimit,
+			},
+		}, nil
+	}
+
 	if strings.Contains(normalized, "limite") || strings.Contains(normalized, "cartao") || strings.Contains(normalized, "cartão") {
 		return mcp.ToolCall{
 			Name: "get_card_limit",
@@ -56,4 +72,24 @@ func PlanToolCallHeuristic(message string, user policy.AuthenticatedUser, availa
 	}
 
 	return mcp.ToolCall{}, fmt.Errorf("nao sei qual tool chamar")
+}
+
+func isCardLimitUpdateIntent(message string) bool {
+	hasLimitContext := strings.Contains(message, "limite") || strings.Contains(message, "cartao") || strings.Contains(message, "cartão")
+	hasUpdateVerb := strings.Contains(message, "aumentar") ||
+		strings.Contains(message, "alterar") ||
+		strings.Contains(message, "ajustar") ||
+		strings.Contains(message, "mudar")
+
+	return hasLimitContext && hasUpdateVerb
+}
+
+func extractFirstNumber(message string) (string, error) {
+	re := regexp.MustCompile(`\d+`)
+	match := re.FindString(message)
+	if match == "" {
+		return "", fmt.Errorf("nao encontrei o novo limite no prompt")
+	}
+
+	return match, nil
 }

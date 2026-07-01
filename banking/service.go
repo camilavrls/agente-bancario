@@ -35,9 +35,7 @@ var cardLimits = map[string]CardLimit{
 }
 
 func GetCustomerProfile(customerID string) (CustomerProfile, error) {
-
 	profile, ok := customers[customerID]
-
 	if !ok {
 		return CustomerProfile{}, fmt.Errorf("cliente não encontrado: %s", customerID)
 	}
@@ -47,13 +45,37 @@ func GetCustomerProfile(customerID string) (CustomerProfile, error) {
 }
 
 func GetCardLimit(customerID string) (CardLimit, error) {
-
 	limit, ok := cardLimits[customerID]
-
 	if !ok {
 		return CardLimit{}, fmt.Errorf("limite de cartão não encontrado: %s", customerID)
 	}
 
 	return limit, nil
 
+}
+
+func UpdateCardLimit(customerID string, newLimit int) (CardLimit, error) {
+	limit, ok := cardLimits[customerID]
+	if !ok {
+		return CardLimit{}, fmt.Errorf("limite de cartão não encontrado: %s", customerID)
+	}
+
+	if newLimit <= 0 {
+		return CardLimit{}, fmt.Errorf("novo limite deve ser maior que zero")
+	}
+
+	if newLimit > limit.MaxAllowedLimit {
+		return CardLimit{}, fmt.Errorf("novo limite excede o limite maximo permitido")
+	}
+
+	usedLimit := limit.CurrentLimit - limit.AvailableLimit
+	if newLimit < usedLimit {
+		return CardLimit{}, fmt.Errorf("novo limite nao pode ser menor que o valor ja utilizado")
+	}
+
+	limit.CurrentLimit = newLimit
+	limit.AvailableLimit = newLimit - usedLimit
+	cardLimits[customerID] = limit
+
+	return limit, nil
 }

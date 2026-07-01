@@ -38,6 +38,27 @@ func GetCardLimitToolDefinition() mcp.ToolDefinition {
 	}
 }
 
+func UpdateCardLimitToolDefinition() mcp.ToolDefinition {
+	return mcp.ToolDefinition{
+		Name:        "update_card_limit",
+		Description: "Atualiza o limite do cartao de um cliente pelo customer_id.",
+		Parameters: []mcp.ToolParameter{
+			{
+				Name:        "customer_id",
+				Type:        "string",
+				Description: "ID do cliente que tera o limite atualizado.",
+				Required:    true,
+			},
+			{
+				Name:        "new_limit",
+				Type:        "integer",
+				Description: "Novo limite total do cartao.",
+				Required:    true,
+			},
+		},
+	}
+}
+
 func GetCustomerProfileTool(user policy.AuthenticatedUser, customerID string) (banking.CustomerProfile, error) {
 
 	decision := policy.CanAccessCustomerResource(user, customerID)
@@ -63,6 +84,22 @@ func GetCardLimitTool(user policy.AuthenticatedUser, customerID string) (banking
 	}
 
 	limit, err := banking.GetCardLimit(customerID)
+	if err != nil {
+		return banking.CardLimit{}, err
+	}
+
+	return limit, nil
+}
+
+func UpdateCardLimitTool(user policy.AuthenticatedUser, customerID string, newLimit int) (banking.CardLimit, error) {
+
+	decision := policy.CanUpdateCardLimit(user, customerID)
+
+	if !decision.Allowed {
+		return banking.CardLimit{}, errors.New(decision.Reason)
+	}
+
+	limit, err := banking.UpdateCardLimit(customerID, newLimit)
 	if err != nil {
 		return banking.CardLimit{}, err
 	}

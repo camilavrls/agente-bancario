@@ -21,6 +21,9 @@ func main() {
 	runPrompt("Maria tentando acessar Joao", maria, "quero consultar o perfil do joao")
 	runPrompt("Maria consultando o proprio limite", maria, "qual e o limite do meu cartao?")
 	runPrompt("Maria tentando consultar limite de Joao", maria, "qual e o limite do cartao do joao?")
+	runPrompt("Maria aumentando o proprio limite", maria, "quero aumentar meu limite para 12000")
+	runPrompt("Maria tentando aumentar limite de Joao", maria, "quero aumentar o limite do cartao do joao para 4000")
+	runPrompt("Maria tentando passar do limite maximo", maria, "quero aumentar meu limite para 20000")
 }
 
 func runPrompt(label string, user policy.AuthenticatedUser, prompt string) {
