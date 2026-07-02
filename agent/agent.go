@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"agente-bancario/audit"
 	"agente-bancario/mcp"
 	"agente-bancario/policy"
 	"agente-bancario/tools"
@@ -33,6 +34,14 @@ func HandleToolCall(user policy.AuthenticatedUser, toolcall mcp.ToolCall) (any, 
 }
 
 func (o *Orchestrator) HandleToolCall(user policy.AuthenticatedUser, toolcall mcp.ToolCall) (any, error) {
+	audit.Log(audit.Event{
+		UserID:   user.ID,
+		UserRole: string(user.Role),
+		Action:   "tool_call_received",
+		Tool:     toolcall.Name,
+		Status:   "received",
+	})
+
 	if toolcall.Name == "create_pix" {
 		pendingToolCall := copyToolCallWithoutConfirmation(toolcall)
 		pendingAction := PendingAction{
@@ -46,13 +55,38 @@ func (o *Orchestrator) HandleToolCall(user policy.AuthenticatedUser, toolcall mc
 		o.pendingActions[user.ID] = pendingAction
 		o.mu.Unlock()
 
+		audit.Log(audit.Event{
+			UserID:   user.ID,
+			UserRole: string(user.Role),
+			Action:   "pending_action_created",
+			Tool:     toolcall.Name,
+			Status:   "pending_confirmation",
+			Reason:   "pix_requires_confirmation",
+		})
+
 		return "pix_requires_confirmation", nil
 	}
 
 	responseTool, err := tools.ExecuteTool(user, toolcall)
 	if err != nil {
+		audit.Log(audit.Event{
+			UserID:   user.ID,
+			UserRole: string(user.Role),
+			Action:   "tool_call_finished",
+			Tool:     toolcall.Name,
+			Status:   "failed",
+			Reason:   err.Error(),
+		})
 		return nil, err
 	}
+
+	audit.Log(audit.Event{
+		UserID:   user.ID,
+		UserRole: string(user.Role),
+		Action:   "tool_call_finished",
+		Tool:     toolcall.Name,
+		Status:   "success",
+	})
 
 	return responseTool, nil
 }
@@ -62,17 +96,48 @@ func (o *Orchestrator) ConfirmPendingAction(user policy.AuthenticatedUser) (any,
 	pendingAction, ok := o.pendingActions[user.ID]
 	if !ok {
 		o.mu.Unlock()
+		audit.Log(audit.Event{
+			UserID:   user.ID,
+			UserRole: string(user.Role),
+			Action:   "pending_action_confirmation",
+			Status:   "failed",
+			Reason:   "no_pending_action",
+		})
 		return nil, errors.New("no_pending_action")
 	}
 	delete(o.pendingActions, user.ID)
 	o.mu.Unlock()
 
+	audit.Log(audit.Event{
+		UserID:   user.ID,
+		UserRole: string(user.Role),
+		Action:   "pending_action_confirmation",
+		Tool:     pendingAction.ToolCall.Name,
+		Status:   "confirmed",
+	})
+
 	confirmedToolCall := addConfirmation(pendingAction.ToolCall)
 
 	responseTool, err := tools.ExecuteTool(user, confirmedToolCall)
 	if err != nil {
+		audit.Log(audit.Event{
+			UserID:   user.ID,
+			UserRole: string(user.Role),
+			Action:   "pending_action_execution",
+			Tool:     pendingAction.ToolCall.Name,
+			Status:   "failed",
+			Reason:   err.Error(),
+		})
 		return nil, err
 	}
+
+	audit.Log(audit.Event{
+		UserID:   user.ID,
+		UserRole: string(user.Role),
+		Action:   "pending_action_execution",
+		Tool:     pendingAction.ToolCall.Name,
+		Status:   "success",
+	})
 
 	return responseTool, nil
 }
