@@ -58,7 +58,7 @@ func main() {
 func printStartup(user policy.AuthenticatedUser) {
 	provider := os.Getenv("LLM_PROVIDER")
 	if provider == "" {
-		provider = "heuristic"
+		provider = "local"
 	}
 
 	fmt.Println("Agente bancario inteligente")

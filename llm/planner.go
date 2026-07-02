@@ -10,27 +10,27 @@ import (
 )
 
 const (
-	llmProviderGemini    = "gemini"
-	llmProviderHeuristic = "heuristic"
+	llmProviderGemini = "gemini"
+	llmProviderLocal  = "local"
 )
 
 func PlanToolCall(message string, user policy.AuthenticatedUser, availableTools []mcp.ToolDefinition) (mcp.ToolCall, error) {
 	provider := strings.ToLower(os.Getenv("LLM_PROVIDER"))
 	if provider == "" {
-		provider = llmProviderHeuristic
+		provider = llmProviderLocal
 	}
 
 	switch provider {
 	case llmProviderGemini:
 		return PlanToolCallGemini(message, user, availableTools)
-	case llmProviderHeuristic:
-		return PlanToolCallHeuristic(message, user, availableTools)
+	case llmProviderLocal, "heuristic":
+		return PlanToolCallLocal(message, user, availableTools)
 	default:
 		return mcp.ToolCall{}, fmt.Errorf("LLM_PROVIDER invalido: %s", provider)
 	}
 }
 
-func PlanToolCallHeuristic(message string, user policy.AuthenticatedUser, availableTools []mcp.ToolDefinition) (mcp.ToolCall, error) {
+func PlanToolCallLocal(message string, user policy.AuthenticatedUser, availableTools []mcp.ToolDefinition) (mcp.ToolCall, error) {
 	normalized := strings.ToLower(message)
 	customerID := user.CustomerID
 
