@@ -132,7 +132,7 @@ llm/
   Planejamento de tool calls. Suporta provider local e Gemini.
 
 mcp/
-  Modelos genéricos de ToolDefinition, ToolParameter e ToolCall.
+  Contratos internos de tool calling usados pelo agente.
 
 policy/
   Regras de autorização e RBAC.
@@ -143,7 +143,7 @@ tools/
 
 ## Organização em camadas
 
-A pasta `mcp` concentra os modelos genéricos de tool calling. Ela não depende do domínio bancário, da LLM, do CLI ou do provider de RAG. Isso mantém `ToolDefinition`, `ToolParameter` e `ToolCall` como contratos reutilizáveis.
+A pasta `mcp` concentra os contratos internos de tool calling. Ela não depende do domínio bancário, da LLM, do CLI ou do provider de RAG. Isso mantém `ToolDefinition`, `ToolParameter` e `ToolCall` como modelos reutilizáveis.
 
 A pasta `tools` faz a ponte entre esse contrato genérico e as capacidades reais da aplicação. Ela expõe as definições que a LLM pode enxergar e também adapta os argumentos recebidos para chamadas de domínio.
 
@@ -187,5 +187,7 @@ search_knowledge_base
 - A resposta do CLI foi mantida simples para a demo. Uma evolução seria melhorar a formatação das respostas para todos os tipos retornados pelas tools.
 
 - O fluxo é CLI. Uma API HTTP para conversas e confirmações seria um próximo passo natural.
+
+- A pasta `mcp` modela o contrato interno de tool calling, mas não expõe um servidor MCP formal. Hoje as tools rodam no mesmo processo Go, em produção, esse registry poderia ser exposto por um servidor separado.
 
 - A cobertura de testes ainda deve ser ampliada para policy, tools, pending actions e fluxos críticos de autorização.
