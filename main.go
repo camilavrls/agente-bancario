@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"agente-bancario/agent"
+	"agente-bancario/knowledge"
 	"agente-bancario/llm"
 	"agente-bancario/policy"
 	"agente-bancario/tools"
@@ -94,7 +95,7 @@ func runPrompt(orchestrator *agent.Orchestrator, user policy.AuthenticatedUser, 
 		return
 	}
 
-	fmt.Printf("Resposta: %+v\n", response)
+	printResponse(response)
 }
 
 func confirmPendingAction(orchestrator *agent.Orchestrator, user policy.AuthenticatedUser) {
@@ -105,6 +106,31 @@ func confirmPendingAction(orchestrator *agent.Orchestrator, user policy.Authenti
 	}
 
 	fmt.Printf("Acao confirmada e executada: %+v\n", response)
+}
+
+func printResponse(response any) {
+	switch value := response.(type) {
+	case []knowledge.KnowledgeResult:
+		printKnowledgeResponse(value)
+	default:
+		fmt.Printf("Resposta: %+v\n", response)
+	}
+}
+
+func printKnowledgeResponse(results []knowledge.KnowledgeResult) {
+	if len(results) == 0 {
+		fmt.Println("Resposta: nenhuma informacao encontrada na base de conhecimento.")
+		return
+	}
+
+	result := results[0]
+	fmt.Println("Resposta:")
+	fmt.Println(strings.TrimSpace(result.Answer))
+
+	if result.Source != "" {
+		fmt.Println()
+		fmt.Println("Fonte:", result.Source)
+	}
 }
 
 func isConfirmation(message string) bool {
