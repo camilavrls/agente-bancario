@@ -74,6 +74,15 @@ func PlanToolCallHeuristic(message string, user policy.AuthenticatedUser, availa
 		}, nil
 	}
 
+	if isKnowledgeIntent(normalized) {
+		return mcp.ToolCall{
+			Name: "search_knowledge_base",
+			Arguments: map[string]string{
+				"query": message,
+			},
+		}, nil
+	}
+
 	if strings.Contains(normalized, "limite") || strings.Contains(normalized, "cartao") || strings.Contains(normalized, "cartão") {
 		return mcp.ToolCall{
 			Name: "get_card_limit",
@@ -97,6 +106,21 @@ func PlanToolCallHeuristic(message string, user policy.AuthenticatedUser, availa
 
 func isPixIntent(message string) bool {
 	return strings.Contains(message, "pix") || strings.Contains(message, "transferir")
+}
+
+func isKnowledgeIntent(message string) bool {
+	return strings.Contains(message, "taxa") ||
+		strings.Contains(message, "tarifa") ||
+		strings.Contains(message, "tarifas") ||
+		strings.Contains(message, "emprestimo") ||
+		strings.Contains(message, "empréstimo") ||
+		strings.Contains(message, "consignado") ||
+		strings.Contains(message, "politica") ||
+		strings.Contains(message, "política") ||
+		strings.Contains(message, "faq") ||
+		strings.Contains(message, "como funciona") ||
+		strings.Contains(message, "seguranca") ||
+		strings.Contains(message, "segurança")
 }
 
 func isCardLimitUpdateIntent(message string) bool {

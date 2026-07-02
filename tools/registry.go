@@ -14,6 +14,7 @@ func ListTools() []mcp.ToolDefinition {
 		GetCardLimitToolDefinition(),
 		UpdateCardLimitToolDefinition(),
 		CreatePixToolDefinition(),
+		SearchKnowledgeBaseToolDefinition(),
 	}
 }
 
@@ -77,6 +78,14 @@ func ExecuteTool(user policy.AuthenticatedUser, toolcall mcp.ToolCall) (any, err
 		confirmed := toolcall.Arguments["confirmed"] == "true"
 
 		return CreatePixTool(user, customerID, pixKey, amountCents, confirmed)
+
+	case "search_knowledge_base":
+		query, ok := toolcall.Arguments["query"]
+		if !ok {
+			return nil, fmt.Errorf("missing required argument: query")
+		}
+
+		return SearchKnowledgeBaseTool(query)
 
 	default:
 		return nil, fmt.Errorf("unknown tool")
