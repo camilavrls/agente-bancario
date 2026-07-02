@@ -23,10 +23,19 @@ profile.cov
 # Go workspace file
 go.work
 go.work.sum
+.cache/
 
 # env file
 .env
 
+# Local Chroma persistence
+chroma-data/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
 # Editor/IDE
 # .idea/
 # .vscode/
+.DS_Store

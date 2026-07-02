@@ -1,0 +1,144 @@
+package llm
+
+import (
+	"agente-bancario/mcp"
+	"agente-bancario/policy"
+	"fmt"
+	"os"
+	"regexp"
+	"strings"
+)
+
+const (
+	llmProviderGemini = "gemini"
+	llmProviderLocal  = "local"
+)
+
+func PlanToolCall(message string, user policy.AuthenticatedUser, availableTools []mcp.ToolDefinition) (mcp.ToolCall, error) {
+	provider := strings.ToLower(os.Getenv("LLM_PROVIDER"))
+	if provider == "" {
+		provider = llmProviderLocal
+	}
+
+	switch provider {
+	case llmProviderGemini:
+		return PlanToolCallGemini(message, user, availableTools)
+	case llmProviderLocal, "heuristic":
+		return PlanToolCallLocal(message, user, availableTools)
+	default:
+		return mcp.ToolCall{}, fmt.Errorf("LLM_PROVIDER invalido: %s", provider)
+	}
+}
+
+func PlanToolCallLocal(message string, user policy.AuthenticatedUser, availableTools []mcp.ToolDefinition) (mcp.ToolCall, error) {
+	normalized := strings.ToLower(message)
+	customerID := user.CustomerID
+
+	if strings.Contains(normalized, "joao") || strings.Contains(normalized, "joão") {
+		customerID = "cust-456"
+	}
+
+	if isPixIntent(normalized) {
+		amount, err := extractFirstNumber(message)
+		if err != nil {
+			return mcp.ToolCall{}, fmt.Errorf("nao encontrei o valor do PIX no prompt")
+		}
+
+		pixKey := "destino@pix.com"
+		if strings.Contains(normalized, "joao") || strings.Contains(normalized, "joão") {
+			pixKey = "joao@pix.com"
+		}
+
+		return mcp.ToolCall{
+			Name: "create_pix",
+			Arguments: map[string]string{
+				"customer_id":  user.CustomerID,
+				"pix_key":      pixKey,
+				"amount_cents": amount + "00",
+			},
+		}, nil
+	}
+
+	if isCardLimitUpdateIntent(normalized) {
+		newLimit, err := extractFirstNumber(message)
+		if err != nil {
+			return mcp.ToolCall{}, err
+		}
+
+		return mcp.ToolCall{
+			Name: "update_card_limit",
+			Arguments: map[string]string{
+				"customer_id": customerID,
+				"new_limit":   newLimit,
+			},
+		}, nil
+	}
+
+	if isKnowledgeIntent(normalized) {
+		return mcp.ToolCall{
+			Name: "search_knowledge_base",
+			Arguments: map[string]string{
+				"query": message,
+			},
+		}, nil
+	}
+
+	if strings.Contains(normalized, "limite") || strings.Contains(normalized, "cartao") || strings.Contains(normalized, "cartão") {
+		return mcp.ToolCall{
+			Name: "get_card_limit",
+			Arguments: map[string]string{
+				"customer_id": customerID,
+			},
+		}, nil
+	}
+
+	if strings.Contains(normalized, "perfil") || strings.Contains(normalized, "meu") {
+		return mcp.ToolCall{
+			Name: "get_customer_profile",
+			Arguments: map[string]string{
+				"customer_id": customerID,
+			},
+		}, nil
+	}
+
+	return mcp.ToolCall{}, fmt.Errorf("nao sei qual tool chamar")
+}
+
+func isPixIntent(message string) bool {
+	return strings.Contains(message, "pix") || strings.Contains(message, "transferir")
+}
+
+func isKnowledgeIntent(message string) bool {
+	return strings.Contains(message, "taxa") ||
+		strings.Contains(message, "tarifa") ||
+		strings.Contains(message, "tarifas") ||
+		strings.Contains(message, "emprestimo") ||
+		strings.Contains(message, "empréstimo") ||
+		strings.Contains(message, "consignado") ||
+		strings.Contains(message, "politica") ||
+		strings.Contains(message, "política") ||
+		strings.Contains(message, "faq") ||
+		strings.Contains(message, "como funciona") ||
+		strings.Contains(message, "seguranca") ||
+		strings.Contains(message, "segurança")
+}
+
+func isCardLimitUpdateIntent(message string) bool {
+	hasLimitContext := strings.Contains(message, "limite") || strings.Contains(message, "cartao") || strings.Contains(message, "cartão")
+	hasUpdateVerb := strings.Contains(message, "aumentar") ||
+		strings.Contains(message, "alterar") ||
+		strings.Contains(message, "ajustar") ||
+		strings.Contains(message, "mudar")
+
+	return hasLimitContext && hasUpdateVerb
+}
+
+func extractFirstNumber(message string) (string, error) {
+	re := regexp.MustCompile(`\d+`)
+	match := re.FindString(message)
+	if match == "" {
+		return "", fmt.Errorf("nao encontrei o novo limite no prompt")
+	}
+
+	return match, nil
+}
