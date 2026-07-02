@@ -1,0 +1,22 @@
+services:
+  chroma:
+    image: chromadb/chroma:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../../chroma-data:/data
+    environment:
+      - IS_PERSISTENT=TRUE
+      - PERSIST_DIRECTORY=/data
+
+  chroma-seed:
+    build:
+      context: .
+      dockerfile: seed.Dockerfile
+    depends_on:
+      - chroma
+    volumes:
+      - ../../knowledge/docs:/docs:ro
+    environment:
+      - CHROMA_HOST=chroma
+      - CHROMA_PORT=8000

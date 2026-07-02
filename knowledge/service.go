@@ -20,8 +20,8 @@ func SearchKnowledgeBase(query string) ([]KnowledgeResult, error) {
 	switch provider {
 	case knowledgeProviderMemory:
 		return SearchKnowledgeBaseMemory(query)
-	// case knowledgeProviderChroma:
-	// 	return SearchKnowledgeBaseChroma(query)
+	case knowledgeProviderChroma:
+		return SearchKnowledgeBaseChroma(query)
 	default:
 		return nil, fmt.Errorf("KNOWLEDGE_PROVIDER invalido: %s", provider)
 	}

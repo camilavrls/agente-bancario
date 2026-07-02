@@ -31,6 +31,10 @@ go.work.sum
 # Local Chroma persistence
 chroma-data/
 
+# Python cache
+__pycache__/
+*.py[cod]
+
 # Editor/IDE
 # .idea/
 # .vscode/
