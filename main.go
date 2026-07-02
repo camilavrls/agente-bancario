@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"os"
+	"strings"
 
 	"agente-bancario/agent"
 	"agente-bancario/llm"
@@ -10,27 +13,67 @@ import (
 )
 
 func main() {
-	maria := policy.AuthenticatedUser{
+	orchestrator := agent.NewOrchestrator()
+
+	user := policy.AuthenticatedUser{
 		ID:         "123",
 		Name:       "Maria",
 		Role:       policy.RoleCustomer,
 		CustomerID: "cust-123",
 	}
 
-	runPrompt("Maria acessando o proprio perfil", maria, "quero consultar meu perfil")
-	runPrompt("Maria tentando acessar Joao", maria, "quero consultar o perfil do joao")
-	runPrompt("Maria consultando o proprio limite", maria, "qual e o limite do meu cartao?")
-	runPrompt("Maria tentando consultar limite de Joao", maria, "qual e o limite do cartao do joao?")
-	runPrompt("Maria aumentando o proprio limite", maria, "quero aumentar meu limite para 12000")
-	runPrompt("Maria tentando aumentar limite de Joao", maria, "quero aumentar o limite do cartao do joao para 4000")
-	runPrompt("Maria tentando passar do limite maximo", maria, "quero aumentar meu limite para 20000")
+	printStartup(user)
+
+	scanner := bufio.NewScanner(os.Stdin)
+	for {
+		fmt.Print("> ")
+		if !scanner.Scan() {
+			break
+		}
+
+		message := strings.TrimSpace(scanner.Text())
+		if message == "" {
+			continue
+		}
+
+		if isExitCommand(message) {
+			fmt.Println("Encerrando.")
+			break
+		}
+
+		if isConfirmation(message) {
+			confirmPendingAction(orchestrator, user)
+			continue
+		}
+
+		runPrompt(orchestrator, user, message)
+	}
+
+	if err := scanner.Err(); err != nil {
+		fmt.Println("Erro ao ler entrada:", err)
+	}
 }
 
-func runPrompt(label string, user policy.AuthenticatedUser, prompt string) {
-	availableTools := tools.ListTools()
+func printStartup(user policy.AuthenticatedUser) {
+	provider := os.Getenv("LLM_PROVIDER")
+	if provider == "" {
+		provider = "heuristic"
+	}
 
-	fmt.Println("Cenario:", label)
-	fmt.Println("Prompt recebido:", prompt)
+	fmt.Println("Agente bancario inteligente")
+	fmt.Println("Usuario autenticado:", user.Name, "("+user.CustomerID+")")
+	fmt.Println("LLM_PROVIDER:", provider)
+	fmt.Println("Digite uma mensagem ou 'sair' para encerrar.")
+	fmt.Println("Exemplos:")
+	fmt.Println("- quero consultar meu perfil")
+	fmt.Println("- qual e o limite do meu cartao?")
+	fmt.Println("- quero aumentar meu limite para 12000")
+	fmt.Println("- fazer pix de 2000 para joao")
+	fmt.Println()
+}
+
+func runPrompt(orchestrator *agent.Orchestrator, user policy.AuthenticatedUser, prompt string) {
+	availableTools := tools.ListTools()
 
 	call, err := llm.PlanToolCall(prompt, user, availableTools)
 	if err != nil {
@@ -40,12 +83,39 @@ func runPrompt(label string, user policy.AuthenticatedUser, prompt string) {
 
 	fmt.Printf("Tool call planejada: %+v\n", call)
 
-	response, err := agent.HandleToolCall(user, call)
+	response, err := orchestrator.HandleToolCall(user, call)
 	if err != nil {
 		fmt.Println("Execucao negada ou falhou:", err)
-		fmt.Println()
 		return
 	}
 
-	fmt.Printf("Execucao permitida: %+v\n\n", response)
+	if response == "pix_requires_confirmation" {
+		fmt.Println("PIX pendente de confirmacao. Digite \"confirmo\" para executar.")
+		return
+	}
+
+	fmt.Printf("Resposta: %+v\n", response)
+}
+
+func confirmPendingAction(orchestrator *agent.Orchestrator, user policy.AuthenticatedUser) {
+	response, err := orchestrator.ConfirmPendingAction(user)
+	if err != nil {
+		fmt.Println("Confirmacao falhou:", err)
+		return
+	}
+
+	fmt.Printf("Acao confirmada e executada: %+v\n", response)
+}
+
+func isConfirmation(message string) bool {
+	normalized := strings.ToLower(message)
+	return normalized == "sim" ||
+		normalized == "confirmo" ||
+		normalized == "confirmar" ||
+		normalized == "confirmo o pix"
+}
+
+func isExitCommand(message string) bool {
+	normalized := strings.ToLower(message)
+	return normalized == "sair" || normalized == "exit" || normalized == "quit"
 }

@@ -45,6 +45,11 @@ type geminiGenerateContentResponse struct {
 	} `json:"error,omitempty"`
 }
 
+type rawToolCall struct {
+	Name      string         `json:"Name"`
+	Arguments map[string]any `json:"Arguments"`
+}
+
 func toolPlanningSystemInstruction() string {
 	return `Voce e um planejador de ferramentas para um agente bancario.
 Sua tarefa e escolher uma das tools disponiveis.
@@ -97,20 +102,46 @@ func PlanToolCallGemini(message string, user policy.AuthenticatedUser, available
 		return mcp.ToolCall{}, err
 	}
 
-	var toolCall mcp.ToolCall
-	if err := json.Unmarshal([]byte(output), &toolCall); err != nil {
+	var raw rawToolCall
+	if err := json.Unmarshal([]byte(output), &raw); err != nil {
 		return mcp.ToolCall{}, fmt.Errorf("resposta invalida do Gemini: %w; resposta: %s", err, output)
 	}
 
-	if toolCall.Name == "" {
+	if raw.Name == "" {
 		return mcp.ToolCall{}, fmt.Errorf("Gemini nao retornou o nome da tool")
 	}
 
-	if toolCall.Arguments == nil {
-		toolCall.Arguments = map[string]string{}
+	arguments := normalizeToolArguments(raw.Arguments)
+
+	return mcp.ToolCall{
+		Name:      raw.Name,
+		Arguments: arguments,
+	}, nil
+}
+
+func normalizeToolArguments(arguments map[string]any) map[string]string {
+	normalized := map[string]string{}
+	for key, value := range arguments {
+		normalized[key] = stringifyToolArgument(value)
 	}
 
-	return toolCall, nil
+	return normalized
+}
+
+func stringifyToolArgument(value any) string {
+	switch typedValue := value.(type) {
+	case string:
+		return typedValue
+	case float64:
+		if typedValue == float64(int64(typedValue)) {
+			return fmt.Sprintf("%d", int64(typedValue))
+		}
+		return fmt.Sprintf("%f", typedValue)
+	case bool:
+		return fmt.Sprintf("%t", typedValue)
+	default:
+		return fmt.Sprint(typedValue)
+	}
 }
 
 func callGemini(prompt string) (string, error) {

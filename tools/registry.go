@@ -13,6 +13,7 @@ func ListTools() []mcp.ToolDefinition {
 		GetCustomerProfileToolDefinition(),
 		GetCardLimitToolDefinition(),
 		UpdateCardLimitToolDefinition(),
+		CreatePixToolDefinition(),
 	}
 }
 
@@ -51,6 +52,31 @@ func ExecuteTool(user policy.AuthenticatedUser, toolcall mcp.ToolCall) (any, err
 		}
 
 		return UpdateCardLimitTool(user, customerID, newLimit)
+
+	case "create_pix":
+		customerID, ok := toolcall.Arguments["customer_id"]
+		if !ok {
+			return nil, fmt.Errorf("missing required argument: customer_id")
+		}
+
+		pixKey, ok := toolcall.Arguments["pix_key"]
+		if !ok {
+			return nil, fmt.Errorf("missing required argument: pix_key")
+		}
+
+		amountCentsRaw, ok := toolcall.Arguments["amount_cents"]
+		if !ok {
+			return nil, fmt.Errorf("missing required argument: amount_cents")
+		}
+
+		amountCents, err := strconv.Atoi(amountCentsRaw)
+		if err != nil {
+			return nil, fmt.Errorf("invalid amount_cents: %w", err)
+		}
+
+		confirmed := toolcall.Arguments["confirmed"] == "true"
+
+		return CreatePixTool(user, customerID, pixKey, amountCents, confirmed)
 
 	default:
 		return nil, fmt.Errorf("unknown tool")

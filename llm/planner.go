@@ -38,6 +38,27 @@ func PlanToolCallHeuristic(message string, user policy.AuthenticatedUser, availa
 		customerID = "cust-456"
 	}
 
+	if isPixIntent(normalized) {
+		amount, err := extractFirstNumber(message)
+		if err != nil {
+			return mcp.ToolCall{}, fmt.Errorf("nao encontrei o valor do PIX no prompt")
+		}
+
+		pixKey := "destino@pix.com"
+		if strings.Contains(normalized, "joao") || strings.Contains(normalized, "joão") {
+			pixKey = "joao@pix.com"
+		}
+
+		return mcp.ToolCall{
+			Name: "create_pix",
+			Arguments: map[string]string{
+				"customer_id":  user.CustomerID,
+				"pix_key":      pixKey,
+				"amount_cents": amount + "00",
+			},
+		}, nil
+	}
+
 	if isCardLimitUpdateIntent(normalized) {
 		newLimit, err := extractFirstNumber(message)
 		if err != nil {
@@ -72,6 +93,10 @@ func PlanToolCallHeuristic(message string, user policy.AuthenticatedUser, availa
 	}
 
 	return mcp.ToolCall{}, fmt.Errorf("nao sei qual tool chamar")
+}
+
+func isPixIntent(message string) bool {
+	return strings.Contains(message, "pix") || strings.Contains(message, "transferir")
 }
 
 func isCardLimitUpdateIntent(message string) bool {

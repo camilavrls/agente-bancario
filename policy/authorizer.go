@@ -71,3 +71,39 @@ func CanUpdateCardLimit(user AuthenticatedUser, targetCustomerID string) PolicyD
 	}
 
 }
+
+func CanCreatePix(user AuthenticatedUser, fromCustomerID string) PolicyDecision {
+
+	switch user.Role {
+	case RoleCustomer:
+		if user.CustomerID == fromCustomerID {
+			return PolicyDecision{
+				Allowed: true,
+				Reason:  "allowed_customer_create_own_pix",
+			}
+		}
+		return PolicyDecision{
+			Allowed: false,
+			Reason:  "denied_customer_create_other_pix",
+		}
+
+	case RoleManager:
+		return PolicyDecision{
+			Allowed: false,
+			Reason:  "denied_manager_create_pix",
+		}
+
+	case RoleAdmin:
+		return PolicyDecision{
+			Allowed: false,
+			Reason:  "denied_admin_create_pix",
+		}
+
+	default:
+		return PolicyDecision{
+			Allowed: false,
+			Reason:  "denied_unknown_role",
+		}
+	}
+
+}

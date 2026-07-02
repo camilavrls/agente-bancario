@@ -34,6 +34,20 @@ var cardLimits = map[string]CardLimit{
 	},
 }
 
+var accountBalances = map[string]AccountBalance{
+	"cust-123": {
+		CustomerID:   "cust-123",
+		BalanceCents: 2500000,
+	},
+
+	"cust-456": {
+		CustomerID:   "cust-456",
+		BalanceCents: 800000,
+	},
+}
+
+var pixTransactionSequence = 1
+
 func GetCustomerProfile(customerID string) (CustomerProfile, error) {
 	profile, ok := customers[customerID]
 	if !ok {
@@ -78,4 +92,41 @@ func UpdateCardLimit(customerID string, newLimit int) (CardLimit, error) {
 	cardLimits[customerID] = limit
 
 	return limit, nil
+}
+
+func CreatePix(fromCustomerID string, toPixKey string, amountCents int) (PixTransaction, error) {
+	if _, ok := customers[fromCustomerID]; !ok {
+		return PixTransaction{}, fmt.Errorf("cliente não encontrado: %s", fromCustomerID)
+	}
+
+	if toPixKey == "" {
+		return PixTransaction{}, fmt.Errorf("chave PIX de destino obrigatoria")
+	}
+
+	if amountCents <= 0 {
+		return PixTransaction{}, fmt.Errorf("valor do PIX deve ser maior que zero")
+	}
+
+	balance, ok := accountBalances[fromCustomerID]
+	if !ok {
+		return PixTransaction{}, fmt.Errorf("saldo não encontrado: %s", fromCustomerID)
+	}
+
+	if balance.BalanceCents < amountCents {
+		return PixTransaction{}, fmt.Errorf("saldo insuficiente")
+	}
+
+	balance.BalanceCents -= amountCents
+	accountBalances[fromCustomerID] = balance
+
+	transaction := PixTransaction{
+		ID:             fmt.Sprintf("pix-%d", pixTransactionSequence),
+		FromCustomerID: fromCustomerID,
+		ToPixKey:       toPixKey,
+		AmountCents:    amountCents,
+		Status:         "completed",
+	}
+	pixTransactionSequence++
+
+	return transaction, nil
 }
