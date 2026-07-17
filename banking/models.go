@@ -26,3 +26,8 @@ type PixTransaction struct {
 	AmountCents    int
 	Status         string
 }
+
+type PixResult struct {
+	Transaction      PixTransaction
+	RemainingBalance AccountBalance
+}

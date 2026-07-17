@@ -94,26 +94,26 @@ func UpdateCardLimit(customerID string, newLimit int) (CardLimit, error) {
 	return limit, nil
 }
 
-func CreatePix(fromCustomerID string, toPixKey string, amountCents int) (PixTransaction, error) {
+func CreatePix(fromCustomerID string, toPixKey string, amountCents int) (PixResult, error) {
 	if _, ok := customers[fromCustomerID]; !ok {
-		return PixTransaction{}, fmt.Errorf("cliente não encontrado: %s", fromCustomerID)
+		return PixResult{}, fmt.Errorf("cliente não encontrado: %s", fromCustomerID)
 	}
 
 	if toPixKey == "" {
-		return PixTransaction{}, fmt.Errorf("chave PIX de destino obrigatoria")
+		return PixResult{}, fmt.Errorf("chave PIX de destino obrigatoria")
 	}
 
 	if amountCents <= 0 {
-		return PixTransaction{}, fmt.Errorf("valor do PIX deve ser maior que zero")
+		return PixResult{}, fmt.Errorf("valor do PIX deve ser maior que zero")
 	}
 
 	balance, ok := accountBalances[fromCustomerID]
 	if !ok {
-		return PixTransaction{}, fmt.Errorf("saldo não encontrado: %s", fromCustomerID)
+		return PixResult{}, fmt.Errorf("saldo não encontrado: %s", fromCustomerID)
 	}
 
 	if balance.BalanceCents < amountCents {
-		return PixTransaction{}, fmt.Errorf("saldo insuficiente")
+		return PixResult{}, fmt.Errorf("saldo insuficiente")
 	}
 
 	balance.BalanceCents -= amountCents
@@ -128,5 +128,8 @@ func CreatePix(fromCustomerID string, toPixKey string, amountCents int) (PixTran
 	}
 	pixTransactionSequence++
 
-	return transaction, nil
+	return PixResult{
+		Transaction:      transaction,
+		RemainingBalance: balance,
+	}, nil
 }

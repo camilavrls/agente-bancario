@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"agente-bancario/banking"
 	"agente-bancario/knowledge"
 	"agente-bancario/mcp"
 )
@@ -53,13 +54,19 @@ func buildFinalAnswerContext(userMessage string, toolCall mcp.ToolCall, response
 
 	if response == "pix_requires_confirmation" {
 		context.Status = "pending"
-		context.SafeMessage = "Para continuar com o PIX, solicite confirmacao explicita do usuario."
+		context.SafeMessage = "Para continuar com o PIX, peca ao usuario para digitar exatamente: confirmo"
+		return context
 	}
 
+	context.SafeMessage = buildSuccessSafeMessage(response)
 	return context
 }
 
 func GenerateFinalAnswerLocal(context finalAnswerContext) string {
+	if context.SafeMessage != "" {
+		return context.SafeMessage
+	}
+
 	switch context.Status {
 	case "pending":
 		return "PIX pendente de confirmacao. Digite \"confirmo\" para executar."
@@ -71,6 +78,14 @@ func GenerateFinalAnswerLocal(context finalAnswerContext) string {
 	}
 
 	switch value := context.Data.(type) {
+	case banking.PixResult:
+		return fmt.Sprintf(
+			"Resposta: PIX %s enviado para %s no valor de %s. Saldo restante: %s.",
+			value.Transaction.ID,
+			value.Transaction.ToPixKey,
+			formatCents(value.Transaction.AmountCents),
+			formatCents(value.RemainingBalance.BalanceCents),
+		)
 	case []knowledge.KnowledgeResult:
 		return formatKnowledgeAnswer(value)
 	default:
@@ -84,20 +99,42 @@ func GenerateFinalAnswerGemini(context finalAnswerContext) (string, error) {
 		return "", err
 	}
 
-	prompt := fmt.Sprintf(`Mensagem original e resultado seguro produzido pelo backend:
-%s`, payload)
+	prompt := fmt.Sprintf(`Mensagem segura obrigatoria produzida pelo backend:
+%s
+
+Contexto tecnico apenas para referencia:
+%s`, context.SafeMessage, payload)
 
 	return callGeminiWithSystemInstruction(finalAnswerSystemInstruction(), prompt, "text/plain")
 }
 
 func finalAnswerSystemInstruction() string {
 	return `Voce e um assistente bancario.
-Redija a resposta final para o cliente com linguagem clara, objetiva e educada.
-Use somente o resultado seguro produzido pelo backend.
-Nao altere decisoes de autorizacao, negacao, erro ou pendencia.
-Se o status for denied ou error, explique a negativa sem sugerir formas de contornar autorizacao.
-Se houver fonte da base de conhecimento, cite a fonte.
-Nao exponha detalhes internos como nomes de structs, JSON, ToolCall ou codigos tecnicos.`
+Reescreva a mensagem segura obrigatoria com linguagem clara, objetiva e educada.
+Preserve exatamente o sentido, status, valores, destino, saldo, confirmacao e fontes da mensagem segura.
+Nao altere decisoes de autorizacao, negacao, erro, sucesso ou pendencia.
+Nao transforme pendencia em falha.
+Nao transforme sucesso em erro.
+Nao invente links, canais de atendimento, politicas, prazos, nomes de produtos ou fontes.
+Nao exponha detalhes internos como nomes de structs, JSON, ToolCall ou codigos tecnicos.
+Responda em no maximo 3 frases.`
+}
+
+func buildSuccessSafeMessage(response any) string {
+	switch value := response.(type) {
+	case banking.PixResult:
+		return fmt.Sprintf(
+			"PIX executado com sucesso. Transacao %s enviada para %s no valor de %s. Saldo restante: %s.",
+			value.Transaction.ID,
+			value.Transaction.ToPixKey,
+			formatCents(value.Transaction.AmountCents),
+			formatCents(value.RemainingBalance.BalanceCents),
+		)
+	case []knowledge.KnowledgeResult:
+		return formatKnowledgeAnswer(value)
+	default:
+		return fmt.Sprintf("Operacao executada com sucesso. Resultado: %+v", response)
+	}
 }
 
 func safeMessageForError(reason string) string {
@@ -110,9 +147,30 @@ func safeMessageForError(reason string) string {
 		return "Nao foi possivel validar sua permissao para esta operacao."
 	case "no_pending_action":
 		return "Nao encontrei nenhuma operacao pendente para confirmar."
+	case "novo limite excede o limite maximo permitido":
+		return "Nao foi possivel aumentar o limite porque o valor solicitado excede o limite maximo permitido para este cliente."
+	case "novo limite nao pode ser menor que o valor ja utilizado":
+		return "Nao foi possivel alterar o limite porque o novo valor e menor que o valor ja utilizado no cartao."
+	case "novo limite deve ser maior que zero":
+		return "Nao foi possivel alterar o limite porque o novo valor precisa ser maior que zero."
+	case "saldo insuficiente":
+		return "Nao foi possivel concluir o PIX porque o saldo disponivel e insuficiente."
+	case "valor do PIX deve ser maior que zero":
+		return "Nao foi possivel concluir o PIX porque o valor precisa ser maior que zero."
+	case "chave PIX de destino obrigatoria":
+		return "Nao foi possivel concluir o PIX porque a chave de destino nao foi informada."
 	default:
 		if strings.HasPrefix(reason, "missing required argument") || strings.HasPrefix(reason, "invalid ") {
 			return "Nao consegui executar a operacao porque faltam informacoes validas."
+		}
+		if strings.HasPrefix(reason, "limite de cartão não encontrado") {
+			return "Nao encontrei informacoes de limite para este cliente."
+		}
+		if strings.HasPrefix(reason, "cliente não encontrado") {
+			return "Nao encontrei o cliente informado."
+		}
+		if strings.HasPrefix(reason, "saldo não encontrado") {
+			return "Nao encontrei informacoes de saldo para este cliente."
 		}
 		return "Nao foi possivel concluir a operacao solicitada."
 	}

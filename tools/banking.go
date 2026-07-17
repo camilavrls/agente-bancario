@@ -134,20 +134,20 @@ func UpdateCardLimitTool(user policy.AuthenticatedUser, customerID string, newLi
 	return limit, nil
 }
 
-func CreatePixTool(user policy.AuthenticatedUser, customerID string, pixKey string, amountCents int, confirmed bool) (banking.PixTransaction, error) {
+func CreatePixTool(user policy.AuthenticatedUser, customerID string, pixKey string, amountCents int, confirmed bool) (banking.PixResult, error) {
 	if !confirmed {
-		return banking.PixTransaction{}, errors.New("pix_requires_confirmation")
+		return banking.PixResult{}, errors.New("pix_requires_confirmation")
 	}
 
 	decision := policy.CanCreatePix(user, customerID)
 
 	if !decision.Allowed {
-		return banking.PixTransaction{}, errors.New(decision.Reason)
+		return banking.PixResult{}, errors.New(decision.Reason)
 	}
 
 	transaction, err := banking.CreatePix(customerID, pixKey, amountCents)
 	if err != nil {
-		return banking.PixTransaction{}, err
+		return banking.PixResult{}, err
 	}
 
 	return transaction, nil
