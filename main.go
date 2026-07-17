@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"agente-bancario/agent"
-	"agente-bancario/knowledge"
 	"agente-bancario/llm"
+	"agente-bancario/mcp"
 	"agente-bancario/policy"
 	"agente-bancario/tools"
 )
@@ -85,52 +85,26 @@ func runPrompt(orchestrator *agent.Orchestrator, user policy.AuthenticatedUser, 
 	fmt.Printf("Tool call planejada: %+v\n", call)
 
 	response, err := orchestrator.HandleToolCall(user, call)
-	if err != nil {
-		fmt.Println("Execucao negada ou falhou:", err)
+	answer, answerErr := llm.GenerateFinalAnswer(prompt, call, response, err)
+	if answerErr != nil {
+		fmt.Println("Erro ao gerar resposta final:", answerErr)
 		return
 	}
 
-	if response == "pix_requires_confirmation" {
-		fmt.Println("PIX pendente de confirmacao. Digite \"confirmo\" para executar.")
-		return
-	}
-
-	printResponse(response)
+	fmt.Println(answer)
 }
 
 func confirmPendingAction(orchestrator *agent.Orchestrator, user policy.AuthenticatedUser) {
 	response, err := orchestrator.ConfirmPendingAction(user)
-	if err != nil {
-		fmt.Println("Confirmacao falhou:", err)
+	call := mcp.ToolCall{Name: "create_pix"}
+
+	answer, answerErr := llm.GenerateFinalAnswer("confirmo", call, response, err)
+	if answerErr != nil {
+		fmt.Println("Erro ao gerar resposta final:", answerErr)
 		return
 	}
 
-	fmt.Printf("Acao confirmada e executada: %+v\n", response)
-}
-
-func printResponse(response any) {
-	switch value := response.(type) {
-	case []knowledge.KnowledgeResult:
-		printKnowledgeResponse(value)
-	default:
-		fmt.Printf("Resposta: %+v\n", response)
-	}
-}
-
-func printKnowledgeResponse(results []knowledge.KnowledgeResult) {
-	if len(results) == 0 {
-		fmt.Println("Resposta: nenhuma informacao encontrada na base de conhecimento.")
-		return
-	}
-
-	result := results[0]
-	fmt.Println("Resposta:")
-	fmt.Println(strings.TrimSpace(result.Answer))
-
-	if result.Source != "" {
-		fmt.Println()
-		fmt.Println("Fonte:", result.Source)
-	}
+	fmt.Println(answer)
 }
 
 func isConfirmation(message string) bool {

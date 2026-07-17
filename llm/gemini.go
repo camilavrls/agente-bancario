@@ -145,6 +145,10 @@ func stringifyToolArgument(value any) string {
 }
 
 func callGemini(prompt string) (string, error) {
+	return callGeminiWithSystemInstruction(toolPlanningSystemInstruction(), prompt, "application/json")
+}
+
+func callGeminiWithSystemInstruction(systemInstruction string, prompt string, responseMimeType string) (string, error) {
 	apiKey := os.Getenv("GEMINI_API_KEY")
 	if apiKey == "" {
 		return "", fmt.Errorf("configure GEMINI_API_KEY para chamar o Gemini")
@@ -157,14 +161,14 @@ func callGemini(prompt string) (string, error) {
 
 	requestBody := geminiGenerateContentRequest{
 		SystemInstruction: geminiContent{
-			Parts: []geminiPart{{Text: toolPlanningSystemInstruction()}},
+			Parts: []geminiPart{{Text: systemInstruction}},
 		},
 		Contents: []geminiContent{
 			{Parts: []geminiPart{{Text: prompt}}},
 		},
 		GenerationConfig: geminiGenerationConfig{
 			Temperature:      0,
-			ResponseMimeType: "application/json",
+			ResponseMimeType: responseMimeType,
 		},
 	}
 
